@@ -1,5 +1,5 @@
 deflate
 -------
 
-Accepts deflate-zipped input and prints unzipped output.
-No flags, no args.
+Accepts deflate-compressed input and prints uncompressed output.
+Just like that.

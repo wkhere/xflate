@@ -3,18 +3,28 @@ package main
 import (
 	"compress/flate"
 	"flag"
+	"fmt"
 	"io"
-	"log"
 	"os"
 )
 
-func init() { log.SetFlags(0) }
-
 func parseFlags() {
-	flag.Usage = func() {
-		log.Println("Usage: deflate\t\t(reads stdin, outputs to stdout)")
-	}
+	var help bool
+	flag.BoolVar(&help, "h", false, "show this help and exit")
+	flag.Usage = usage
 	flag.Parse()
+
+	if help {
+		flag.CommandLine.SetOutput(os.Stdout)
+		usage()
+		os.Exit(0)
+	}
+}
+
+func usage() {
+	o := flag.CommandLine.Output()
+	fmt.Fprintln(o, "Usage: deflate\t\t(reads stdin, outputs to stdout)")
+	flag.PrintDefaults()
 }
 
 func main() {
@@ -22,6 +32,11 @@ func main() {
 
 	_, err := io.Copy(os.Stdout, flate.NewReader(os.Stdin))
 	if err != nil {
-		log.Fatal(err)
+		die(fmt.Errorf("deflate: %v", err))
 	}
+}
+
+func die(err error) {
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
 }
