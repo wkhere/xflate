@@ -23,7 +23,8 @@ func parseFlags() {
 
 func usage() {
 	o := flag.CommandLine.Output()
-	fmt.Fprintln(o, "Usage: deflate\t\t(reads stdin, outputs to stdout)")
+	prog := os.Args[0]
+	fmt.Fprintf(o, "Usage: %s\t\t(reads stdin, outputs to stdout)\n", prog)
 	flag.PrintDefaults()
 }
 
