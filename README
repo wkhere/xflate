@@ -1,4 +1,4 @@
-deflate
+unflate
 -------
 
 Accepts deflate-compressed input and prints uncompressed output.
