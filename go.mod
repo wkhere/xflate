@@ -1,3 +1,3 @@
-module github.com/wkhere/unflate
+module github.com/wkhere/xflate
 
 go 1.12
