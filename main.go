@@ -2,47 +2,60 @@ package main
 
 import (
 	"compress/flate"
-	"flag"
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/spf13/pflag"
 )
 
-var prog string
+var prog, usageHead string
 
 func init() {
 	prog = os.Args[0]
+	usageHead = fmt.Sprintf(
+		"Usage: %s\t(reads stdin, outputs to stdout)", prog)
 }
 
 type config struct {
-	compress bool
+	compress      bool
+	compressLevel int
 }
 
-func parseFlags() config {
+func parseFlags(args []string) config {
 	var conf config
 	var help bool
-	flag.BoolVar(&conf.compress, "z", false, "compress (default: false)")
-	flag.BoolVar(&help, "h", false, "show this help and exit")
-	flag.Usage = usage
-	flag.Parse()
 
+	flag := pflag.NewFlagSet("flags", pflag.ContinueOnError)
+	flag.SortFlags = false
+
+	flag.BoolVarP(&conf.compress, "compress", "z", false,
+		"compress (default false -- means decompress)")
+	flag.BoolVarP(&help, "help", "h", false,
+		"show this help and exit")
+	flag.Usage = func() { usage(os.Stderr, flag) }
+
+	err := flag.Parse(args)
+	if err != nil {
+		usage(os.Stderr, flag)
+		os.Exit(2)
+	}
 	if help {
-		flag.CommandLine.SetOutput(os.Stdout)
-		usage()
+		usage(os.Stdout, flag)
 		os.Exit(0)
 	}
 
 	return conf
 }
 
-func usage() {
-	o := flag.CommandLine.Output()
-	fmt.Fprintf(o, "Usage: %s\t\t(reads stdin, outputs to stdout)\n", prog)
-	flag.PrintDefaults()
+func usage(w io.Writer, f *pflag.FlagSet) {
+	fmt.Fprintln(w, usageHead)
+	f.SetOutput(w)
+	f.PrintDefaults()
 }
 
 func main() {
-	conf := parseFlags()
+	conf := parseFlags(os.Args[1:])
 
 	switch {
 	case conf.compress:
