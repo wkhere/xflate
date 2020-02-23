@@ -1,3 +1,4 @@
+// Xflate decompresses or compresses deflate stream.
 package main
 
 import (
