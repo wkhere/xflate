@@ -32,6 +32,7 @@ func parseFlags(args []string) config {
 
 	flag.BoolVarP(&conf.compress, "compress", "z", false,
 		"compress (default false -- means decompress)")
+	// TODO: complement with --decompress -d flag
 	flag.IntVarP(&conf.compressLevel, "level", "n", 6,
 		"compress level, -2..9")
 	flag.BoolVarP(&help, "help", "h", false,
