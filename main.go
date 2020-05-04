@@ -37,25 +37,23 @@ func parseFlags(args []string) config {
 		"compress level, -2..9")
 	flag.BoolVarP(&help, "help", "h", false,
 		"show this help and exit")
-	flag.Usage = func() { usage(os.Stderr, flag) }
+	flag.Usage = func() {
+		fmt.Fprintln(flag.Output(), usageHead)
+		flag.PrintDefaults()
+	}
 
 	err := flag.Parse(args)
 	if err != nil {
-		usage(os.Stderr, flag)
+		flag.Usage()
 		os.Exit(2)
 	}
 	if help {
-		usage(os.Stdout, flag)
+		flag.SetOutput(os.Stdout)
+		flag.Usage()
 		os.Exit(0)
 	}
 
 	return conf
-}
-
-func usage(w io.Writer, f *pflag.FlagSet) {
-	fmt.Fprintln(w, usageHead)
-	f.SetOutput(w)
-	f.PrintDefaults()
 }
 
 func main() {
