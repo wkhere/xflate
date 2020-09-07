@@ -65,10 +65,13 @@ func main() {
 		if err != nil {
 			die(fmt.Errorf("failed creating compress writer: %v", err))
 		}
-		defer w.Close()
 		_, err = io.Copy(w, os.Stdin)
 		if err != nil {
 			die(fmt.Errorf("compress: %v", err))
+		}
+		err = w.Close()
+		if err != nil {
+			die(fmt.Errorf("compress closing: %v", err))
 		}
 
 	default:
