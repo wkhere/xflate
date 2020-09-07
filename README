@@ -1,5 +1,8 @@
-unflate
+xflate
 -------
 
-Accepts deflate-compressed input and prints uncompressed output.
-Just like that.
+Decompress or compress using deflate format.
+
+Note the verbs:
+deflate == compress
+inflate == decompress
