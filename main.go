@@ -13,7 +13,7 @@ import (
 var prog, usageHead string
 
 func init() {
-	prog = os.Args[0]
+	prog = "xflate"
 	usageHead = fmt.Sprintf(
 		"Usage: %s\t(reads stdin, outputs to stdout)", prog)
 }
