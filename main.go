@@ -1,4 +1,4 @@
-// Xflate decompresses or compresses deflate stream.
+// xflate compresses or decompresses deflate stream.
 package main
 
 import (
@@ -24,15 +24,17 @@ type config struct {
 }
 
 func parseFlags(args []string) config {
-	var conf config
-	var help bool
+	var (
+		conf       config
+		decompress bool
+		help       bool
+	)
 
 	flag := pflag.NewFlagSet("flags", pflag.ContinueOnError)
 	flag.SortFlags = false
 
-	flag.BoolVarP(&conf.compress, "compress", "z", false,
-		"compress (default false -- means decompress)")
-	// TODO: complement with --decompress -d flag
+	flag.BoolVarP(&conf.compress, "compress", "z", true, "compress")
+	flag.BoolVarP(&decompress, "decompress", "d", false, "decompress")
 	flag.IntVarP(&conf.compressLevel, "level", "n", 6,
 		"compress level, -2..9")
 	flag.BoolVarP(&help, "help", "h", false,
@@ -44,13 +46,20 @@ func parseFlags(args []string) config {
 
 	err := flag.Parse(args)
 	if err != nil {
-		flag.Usage()
-		os.Exit(2)
+		die(2, err)
 	}
 	if help {
 		flag.SetOutput(os.Stdout)
 		flag.Usage()
-		os.Exit(0)
+		die(0)
+	}
+
+	if flag.Changed("compress") && flag.Changed("decompress") &&
+		conf.compress == decompress {
+		die(2, "conflicting flags -z and -d")
+	}
+	if flag.Changed("decompress") {
+		conf.compress = !decompress
 	}
 
 	return conf
@@ -63,28 +72,31 @@ func main() {
 	case conf.compress:
 		w, err := flate.NewWriter(os.Stdout, conf.compressLevel)
 		if err != nil {
-			die(fmt.Errorf("failed creating compress writer: %v", err))
+			die(1, "failed creating compress writer:", err)
 		}
 		_, err = io.Copy(w, os.Stdin)
 		if err != nil {
-			die(fmt.Errorf("compress: %v", err))
+			die(1, "compress:", err)
 		}
 		err = w.Close()
 		if err != nil {
-			die(fmt.Errorf("compress closing: %v", err))
+			die(1, "compress closing", err)
 		}
 
-	default:
+	case !conf.compress:
 		r := flate.NewReader(os.Stdin)
 		defer r.Close()
 		_, err := io.Copy(os.Stdout, r)
 		if err != nil {
-			die(fmt.Errorf("decompress: %v", err))
+			die(1, "decompress:", err)
 		}
 	}
 }
 
-func die(err error) {
-	fmt.Fprintln(os.Stderr, prog+":", err)
-	os.Exit(1)
+func die(exitcode int, msgs ...interface{}) {
+	if len(msgs) > 0 {
+		fmt.Fprint(os.Stderr, prog, ": ")
+		fmt.Fprintln(os.Stderr, msgs...)
+	}
+	os.Exit(exitcode)
 }
