@@ -47,6 +47,9 @@ func parseFlags(args []string) (conf config) {
 	if err != nil {
 		die(2, err)
 	}
+	if len(flag.Args()) > 0 {
+		die(2, "unexpected args, use stdin/stdout")
+	}
 	if help {
 		flag.SetOutput(os.Stdout)
 		flag.Usage()
