@@ -8,17 +8,22 @@ import (
 	"os"
 )
 
-type config struct {
+type action struct {
 	compress      bool
 	compressLevel int
 
 	help func()
 }
 
-func run(conf config) error {
+var defaultAction = action{
+	compress:      true,
+	compressLevel: 6,
+}
+
+func run(a action) error {
 	switch {
-	case conf.compress:
-		w, err := flate.NewWriter(os.Stdout, conf.compressLevel)
+	case a.compress:
+		w, err := flate.NewWriter(os.Stdout, a.compressLevel)
 		if err != nil {
 			return fmt.Errorf("failed creating compress writer: %w", err)
 		}
@@ -31,7 +36,7 @@ func run(conf config) error {
 			return fmt.Errorf("compress closing %w", err)
 		}
 
-	case !conf.compress:
+	case !a.compress:
 		r := flate.NewReader(os.Stdin)
 		defer r.Close()
 		_, err := io.Copy(os.Stdout, r)
