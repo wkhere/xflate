@@ -127,7 +127,7 @@ loop:
 
 	switch {
 	case flag.zset && flag.dset && flag.z == flag.d:
-		return p.errorf("conflicting flags -z and -d")
+		return p.errorf("conflicting flags -z=%v and -d=%v", flag.z, flag.d)
 	case flag.zset:
 		p.a.compress = flag.z
 	case flag.dset:
