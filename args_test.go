@@ -10,6 +10,12 @@ func TestParseArgs(t *testing.T) {
 	var (
 		defaultLevel = defaultAction.compressLevel
 
+		file1 = func(s string) func(*action) bool {
+			return func(a *action) bool { return a.fileIn == s }
+		}
+		file2 = func(s string) func(*action) bool {
+			return func(a *action) bool { return a.fileOut == s }
+		}
 		compress = func(level int) func(*action) bool {
 			return func(a *action) bool {
 				return a.compress == true && a.compressLevel == level
@@ -18,6 +24,9 @@ func TestParseArgs(t *testing.T) {
 		decompress = func(a *action) bool { return a.compress == false }
 		hasHelp    = func(a *action) bool { return a.help != nil }
 		none       = func(_ *action) bool { return false }
+		and        = func(f, g func(*action) bool) func(*action) bool {
+			return func(a *action) bool { return f(a) && g(a) }
+		}
 
 		tab = []struct {
 			input string
@@ -37,9 +46,25 @@ func TestParseArgs(t *testing.T) {
 			{"-1", compress(1), ""},
 			{"-2", compress(2), ""},
 			{"-9", compress(9), ""},
-			{"-", none, "unexpected args"},
-			{"foo", none, "unexpected args"},
-			{"foo bar", none, "unexpected args"},
+			{"", and(file1("-"), file2("-")), ""},
+			{"-z", and(file1("-"), file2("-")), ""},
+			{"-d", and(file1("-"), file2("-")), ""},
+			{"-", and(file1("-"), file2("-")), ""},
+			{"-z -", and(file1("-"), file2("-")), ""},
+			{"-d -", and(file1("-"), file2("-")), ""},
+			{"- x", and(file1("-"), file2("x")), ""},
+			{"x -", and(file1("x"), file2("-")), ""},
+			{"- -", and(file1("-"), file2("-")), ""},
+			{"-z - -", and(file1("-"), file2("-")), ""},
+			{"-d - -", and(file1("-"), file2("-")), ""},
+			{"foo", file1("foo"), ""},
+			{"-4 foo", and(compress(4), file1("foo")), ""},
+			{"foo -4", and(compress(4), file1("foo")), ""},
+			{"foo bar", and(file1("foo"), file2("bar")), ""},
+			{"foo", and(file1("foo"), file2("foo.deflate")), ""},
+			{"-z foo", and(file1("foo"), file2("foo.deflate")), ""},
+			{"-d foo.deflate", and(file1("foo.deflate"), file2("foo")), ""},
+			{"-d foo", none, "unable to guess 2nd file name"},
 		}
 	)
 

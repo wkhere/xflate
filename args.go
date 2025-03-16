@@ -95,10 +95,11 @@ func (p *argp) errorf(format string, a ...any) argpStateFn {
 
 func argpStart(p *argp) argpStateFn {
 	var flag struct {
-		z, d       bool
+		z, d, f    bool
 		zset, dset bool
 		lvl        int
 	}
+	var rest []string
 loop:
 	for {
 		switch s := p.read(); {
@@ -114,6 +115,9 @@ loop:
 		case p.parseIntFlag(&flag.lvl, s, "--level"):
 			p.a.compressLevel = flag.lvl
 
+		case p.parseBoolFlag(&flag.f, s, "-f", "--force"):
+			p.a.force = flag.f
+
 		case s == "-h" || s == "--help":
 			return p.final(toplevelHelp)
 
@@ -121,7 +125,7 @@ loop:
 			return p.errorf("unknown flag: %s", s)
 
 		default:
-			return p.errorf("unexpected args, use stdin/stdout")
+			rest = append(rest, s)
 		}
 	}
 
@@ -133,6 +137,34 @@ loop:
 	case flag.dset:
 		p.a.compress = !flag.d
 	}
+
+	switch len(rest) {
+	case 0:
+		p.a.fileIn = "-"
+		p.a.fileOut = "-"
+	case 1:
+		switch f1 := rest[0]; {
+		case f1 == "-":
+			p.a.fileIn = "-"
+			p.a.fileOut = "-"
+		case p.a.compress:
+			p.a.fileIn = f1
+			p.a.fileOut = f1 + fileExt
+		case !p.a.compress && strings.HasSuffix(f1, fileExt):
+			p.a.fileIn = f1
+			p.a.fileOut = f1[:len(f1)-len(fileExt)]
+		default:
+			return p.errorf("unable to guess 2nd file name")
+		}
+	case 2:
+		if rest[0] == rest[1] && rest[0] != "-" {
+			return p.errorf("files must be different")
+		}
+		p.a.fileIn, p.a.fileOut = rest[0], rest[1]
+	default:
+		return p.errorf("too many file args")
+	}
+
 	return nil
 }
 
@@ -213,9 +245,14 @@ func toplevelHelp(a *action) {
 	}
 }
 
-const usage = `Usage: xflate [flags]  (reads stdin, outputs to stdout)
-  -z, --compress     compress (default true)
-  -d, --decompress   decompress
-  -N, --level=N      compress level, -2..9 (default %d)
-  -h, --help         show this help and exit
+const usage = `Usage: xflate [FLAGS] [FILE1] [FILE2]
+    -z, --compress     compress (default true)
+    -d, --decompress   decompress
+    -N, --level=N      compress level, -2..9 (default %d)
+    -f, --force        force overwriting FILE2
+    -h, --help         show this help and exit
+When compressing and only FILE1 is given, FILE2 is FILE1.deflate .
+When decompressing and only FILE1 is given, FILE2 tries to strip .deflate from it.
+FILE1 or FILE2 (or both) can be "-", meaning stdin and stdout.
+NOTE: FILE1 is not deleted afterwards.
 `
