@@ -1,5 +1,5 @@
 go:
-	go vet
+	go test
 	go build
 
 install: go
