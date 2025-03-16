@@ -117,7 +117,7 @@ loop:
 		case s == "-h" || s == "--help":
 			return p.final(toplevelHelp)
 
-		case strings.HasPrefix(s, "-"):
+		case len(s) > 1 && s[0] == '-':
 			return p.errorf("unknown flag: %s", s)
 
 		default:

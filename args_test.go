@@ -37,6 +37,7 @@ func TestParseArgs(t *testing.T) {
 			{"-1", compress(1), ""},
 			{"-2", compress(2), ""},
 			{"-9", compress(9), ""},
+			{"-", none, "unexpected args"},
 			{"foo", none, "unexpected args"},
 			{"foo bar", none, "unexpected args"},
 		}
