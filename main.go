@@ -45,7 +45,7 @@ func openOut(path string, force bool) (*os.File, error) {
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|wflag, 0644)
 }
 
-func run(a action) error {
+func run(a action) (rerr error) {
 	in, err := openIn(a.fileIn)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func run(a action) error {
 	if err != nil {
 		return err
 	}
-	defer safeClose(out, &err)
+	defer safeClose(out, &rerr)
 
 	switch {
 	case a.compress:
@@ -76,7 +76,8 @@ func run(a action) error {
 
 	case !a.compress:
 		r := flate.NewReader(in)
-		defer r.Close()
+		defer safeClose(r, &rerr)
+
 		_, err := io.Copy(out, r)
 		if err != nil {
 			return fmt.Errorf("decompress: %w", err)
@@ -103,8 +104,8 @@ func main() {
 
 }
 
-func safeClose(f *os.File, errp *error) {
-	cerr := f.Close()
+func safeClose(c io.Closer, errp *error) {
+	cerr := c.Close()
 	if cerr != nil && *errp == nil {
 		*errp = cerr
 	}
