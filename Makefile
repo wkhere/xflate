@@ -1,5 +1,5 @@
 go:
-	go test
+	go test .
 	go build
 
 install: go
