@@ -9,100 +9,18 @@ import (
 func parseArgs(args []string) (a action, _ error) {
 	a = defaultAction
 
-	errs := runArgp(&a, args)
-	if len(errs) > 0 {
-		return a, errs[0]
-	}
-	return a, nil
-}
+	var p pstate
 
-// argp struct & api entry
-
-type argp struct {
-	input  []string
-	pos    int
-	lastw  int
-	hasArg bool
-
-	a    *action
-	errs []error
-}
-
-func runArgp(a *action, input []string) []error {
-	p := argp{
-		input: input,
-		a:     a,
-	}
-	p.run()
-	return p.errs
-}
-
-// basic primitives
-
-type argpStateFn func(*argp) argpStateFn
-
-func (p *argp) run() {
-	for st := argpStart; st != nil; {
-		st = st(p)
-	}
-}
-
-func (p *argp) emit(f func(*action)) {
-	f(p.a)
-}
-
-func (p *argp) emitError(err error) {
-	p.errs = append(p.errs, err)
-}
-
-func (p *argp) emitErrorf(format string, a ...any) {
-	p.emitError(fmt.Errorf(format, a...))
-}
-
-func (p *argp) read() (s string) {
-	if len(p.input[p.pos:]) == 0 {
-		p.lastw = 0
-		return
-	}
-	s = p.input[p.pos]
-	p.lastw = 1
-	p.pos++
-	return s
-}
-
-func (p *argp) backup() {
-	p.pos -= p.lastw
-}
-
-// finalizing helpers
-
-func (p *argp) final(f func(*action)) argpStateFn {
-	p.emit(f)
-	return nil
-}
-
-func (p *argp) error(err error) argpStateFn {
-	p.emitError(err)
-	return nil
-}
-
-func (p *argp) errorf(format string, a ...any) argpStateFn {
-	p.emitErrorf(format, a...)
-	return nil
-}
-
-// state functions
-
-func argpStart(p *argp) argpStateFn {
 	var flag struct {
 		z, d, t, f bool
 		zset, dset bool
 		lvl        int
 	}
 	var rest []string
+
 loop:
-	for {
-		switch s := p.read(); {
+	for ; len(args) > 0 && p.err == nil; args = args[1:] {
+		switch s := args[0]; {
 		case s == "":
 			break loop
 
@@ -113,82 +31,98 @@ loop:
 			flag.dset = true
 
 		case p.parseIntFlag(&flag.lvl, s, "--level"):
-			p.a.compressLevel = flag.lvl
+			a.compressLevel = flag.lvl
 
 		case p.parseBoolFlag(&flag.f, s, "-f", "--force"):
-			p.a.force = flag.f
+			a.force = flag.f
 
 		case p.parseBoolFlag(&flag.t, s, "-t", "--test"): // ok
 
 		case s == "-h" || s == "--help":
-			return p.final(toplevelHelp)
+			a.help = toplevelHelp
+			return a, nil
 
 		case len(s) > 1 && s[0] == '-':
-			return p.errorf("unknown flag: %s", s)
+			p.emitErrorf("unknown flag: %s", s)
 
 		default:
 			rest = append(rest, s)
 		}
 	}
 
+	if p.err != nil {
+		return a, p.err
+	}
+
 	switch {
 	case flag.t && (flag.zset || flag.dset):
-		return p.errorf("conflicting flags: use -t without -z or -d")
+		return a, fmt.Errorf("conflicting flags: use -t without -z or -d")
 	case flag.zset && flag.dset && flag.z == flag.d:
-		return p.errorf("conflicting flags -z=%v and -d=%v", flag.z, flag.d)
+		return a, fmt.Errorf("conflicting flags -z=%v and -d=%v", flag.z, flag.d)
 	case flag.zset:
-		p.a.compress = flag.z
+		a.compress = flag.z
 	case flag.dset:
-		p.a.compress = !flag.d
+		a.compress = !flag.d
 	}
 
 	if flag.t {
 		switch len(rest) {
 		case 0:
-			p.a.fileIn = "-"
+			a.fileIn = "-"
 		case 1:
-			p.a.fileIn = rest[0]
+			a.fileIn = rest[0]
 		default:
-			return p.errorf("-t accepts at most one file name")
+			return a, fmt.Errorf("-t accepts at most one file name")
 		}
-		p.a.fileOut = discard
-		p.a.compress = false
-		return nil
+		a.fileOut = discard
+		a.compress = false
+		return a, nil
 	}
 
 	switch len(rest) {
 	case 0:
-		p.a.fileIn = "-"
-		p.a.fileOut = "-"
+		a.fileIn = "-"
+		a.fileOut = "-"
 	case 1:
 		switch f1 := rest[0]; {
 		case f1 == "-":
-			p.a.fileIn = "-"
-			p.a.fileOut = "-"
-		case p.a.compress:
-			p.a.fileIn = f1
-			p.a.fileOut = f1 + fileExt
-		case !p.a.compress && strings.HasSuffix(f1, fileExt):
-			p.a.fileIn = f1
-			p.a.fileOut = f1[:len(f1)-len(fileExt)]
+			a.fileIn = "-"
+			a.fileOut = "-"
+		case a.compress:
+			a.fileIn = f1
+			a.fileOut = f1 + fileExt
+		case !a.compress && strings.HasSuffix(f1, fileExt):
+			a.fileIn = f1
+			a.fileOut = f1[:len(f1)-len(fileExt)]
 		default:
-			return p.errorf("unable to guess 2nd file name")
+			return a, fmt.Errorf("unable to guess 2nd file name")
 		}
 	case 2:
 		if rest[0] == rest[1] && rest[0] != "-" {
-			return p.errorf("files must be different")
+			return a, fmt.Errorf("files must be different")
 		}
-		p.a.fileIn, p.a.fileOut = rest[0], rest[1]
+		a.fileIn, a.fileOut = rest[0], rest[1]
 	default:
-		return p.errorf("too many file args")
+		return a, fmt.Errorf("too many file args")
 	}
 
-	return nil
+	return a, nil
+}
+
+type pstate struct {
+	err error
+}
+
+func (p *pstate) emitErrorf(format string, a ...any) {
+	// saving only the first error:
+	if p.err == nil {
+		p.err = fmt.Errorf(format, a...)
+	}
 }
 
 // parsing bits, for case expressions
 
-func (p *argp) parseBoolFlag(dest *bool, s, short, long string) bool {
+func (p *pstate) parseBoolFlag(dest *bool, s, short, long string) bool {
 	var n int
 	if strings.HasPrefix(s, long) {
 		n = len(long)
@@ -214,7 +148,7 @@ func (p *argp) parseBoolFlag(dest *bool, s, short, long string) bool {
 	return true
 }
 
-func (p *argp) parseIntFlag(dest *int, s, long string) bool {
+func (p *pstate) parseIntFlag(dest *int, s, long string) bool {
 	var n int
 	var dashN bool
 	if strings.HasPrefix(s, long) {
@@ -255,12 +189,10 @@ func (p *argp) parseIntFlag(dest *int, s, long string) bool {
 	return true
 }
 
-// emited bits
+// help
 
-func toplevelHelp(a *action) {
-	a.help = func() {
-		fmt.Printf(usage, defaultAction.compressLevel)
-	}
+func toplevelHelp() {
+	fmt.Printf(usage, defaultAction.compressLevel)
 }
 
 const usage = `Usage: xflate [FLAGS] [FILE1] [FILE2]
