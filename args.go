@@ -95,7 +95,7 @@ func (p *argp) errorf(format string, a ...any) argpStateFn {
 
 func argpStart(p *argp) argpStateFn {
 	var flag struct {
-		z, d, f    bool
+		z, d, t, f bool
 		zset, dset bool
 		lvl        int
 	}
@@ -118,6 +118,8 @@ loop:
 		case p.parseBoolFlag(&flag.f, s, "-f", "--force"):
 			p.a.force = flag.f
 
+		case p.parseBoolFlag(&flag.t, s, "-t", "--test"): // ok
+
 		case s == "-h" || s == "--help":
 			return p.final(toplevelHelp)
 
@@ -130,12 +132,28 @@ loop:
 	}
 
 	switch {
+	case flag.t && (flag.zset || flag.dset):
+		return p.errorf("conflicting flags: use -t without -z or -d")
 	case flag.zset && flag.dset && flag.z == flag.d:
 		return p.errorf("conflicting flags -z=%v and -d=%v", flag.z, flag.d)
 	case flag.zset:
 		p.a.compress = flag.z
 	case flag.dset:
 		p.a.compress = !flag.d
+	}
+
+	if flag.t {
+		switch len(rest) {
+		case 0:
+			p.a.fileIn = "-"
+		case 1:
+			p.a.fileIn = rest[0]
+		default:
+			return p.errorf("-t accepts at most one file name")
+		}
+		p.a.fileOut = discard
+		p.a.compress = false
+		return nil
 	}
 
 	switch len(rest) {
@@ -250,6 +268,7 @@ const usage = `Usage: xflate [FLAGS] [FILE1] [FILE2]
     -d, --decompress   decompress
     -N, --level=N      compress level, -2..9 (default %d)
     -f, --force        force overwriting FILE2
+    -t, --test         test compressed FILE1
     -h, --help         show this help and exit
 When compressing and only FILE1 is given, FILE2 is FILE1.deflate .
 When decompressing and only FILE1 is given, FILE2 tries to strip .deflate from it.
