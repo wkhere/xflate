@@ -1,1 +1,2 @@
 + check if decompressing Reader needs safeClose
+- warning (error?) on compressing already compressed input
