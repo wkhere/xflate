@@ -195,7 +195,11 @@ func toplevelHelp() {
 	fmt.Printf(usage, defaultAction.compressLevel)
 }
 
-const usage = `Usage: xflate [FLAGS] [FILE1] [FILE2]
+const usage = `Compress/decompress files according to the deflate format.
+
+NOTE: The raw deflate format differs from both the zlib and gzip formats.
+
+Usage: xflate [FLAGS] [FILE1] [FILE2]
     -z, --compress     compress (default true)
     -d, --decompress   decompress
     -N, --level=N      compress level, -2..9 (default %d)
