@@ -1,9 +1,8 @@
-go:
+build:
 	go test .
 	go build
 
-install: go
-	go install
+install: build
+	go install -ldflags=-s
 
-
-.PHONY: go install
+.PHONY: build install
