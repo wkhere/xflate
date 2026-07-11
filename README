@@ -1,7 +1,7 @@
 xflate
 -------
 
-CLI for deflate format.
+CLI for the deflate format.
 
 Note the verbs:
 deflate == compress
