@@ -46,6 +46,8 @@ func TestParseArgs(t *testing.T) {
 			{"-1", compress(1), ""},
 			{"-2", compress(2), ""},
 			{"-9", compress(9), ""},
+			{"-0", compress(0), ""},
+			{"--2", compress(-2), ""},
 			{"--level=9", compress(9), ""},
 			{"--level=a", none, "invalid syntax"},
 			{"--level=", none, "invalid syntax"},
