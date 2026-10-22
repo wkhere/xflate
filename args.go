@@ -2,56 +2,55 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+
+	"codeberg.org/wkhere/argp"
+	pc "codeberg.org/wkhere/argp/parsecommon"
 )
 
 func parseArgs(args []string) (a action, _ error) {
 	a = defaultAction
 
-	var p pstate
+	p := &argp.PState{Args: args}
 
 	var flag struct {
-		z, d, t, f bool
+		z, d, t    bool
 		zset, dset bool
-		lvl        int
 	}
 	var rest []string
 
-loop:
-	for ; len(args) > 0 && p.err == nil; args = args[1:] {
-		switch s := args[0]; {
-		case s == "":
-			break loop
+	for ; len(p.Args) > 0 && p.Err == nil; p.Next() {
+		switch arg := p.Arg(); {
 
-		case p.parseBoolFlag(&flag.z, s, "-z", "--compress"):
-			flag.zset = true
+		case p.MatchBoolFlag("-z", "--compress"):
+			flag.zset = pc.ParseBool(&flag.z, p)
 
-		case p.parseBoolFlag(&flag.d, s, "-d", "--decompress"):
-			flag.dset = true
+		case p.MatchBoolFlag("-d", "--decompress"):
+			flag.dset = pc.ParseBool(&flag.d, p)
 
-		case p.parseIntFlag(&flag.lvl, s, "--level"):
-			a.compressLevel = flag.lvl
+		case p.MatchDashIntFlag() || p.MatchLongFlagExpr("--level"):
+			pc.ParseInt(&a.compressLevel, p)
 
-		case p.parseBoolFlag(&flag.f, s, "-f", "--force"):
-			a.force = flag.f
+		case p.MatchBoolFlag("-f", "--force"):
+			pc.ParseBool(&a.force, p)
 
-		case p.parseBoolFlag(&flag.t, s, "-t", "--test"): // ok
+		case p.MatchBoolFlag("-t", "--test"):
+			pc.ParseBool(&flag.t, p)
 
-		case s == "-h" || s == "--help":
+		case p.MatchJustFlag("-h", "--help"):
 			a.help = toplevelHelp
 			return a, nil
 
-		case len(s) > 1 && s[0] == '-':
-			p.emitErrorf("unknown flag: %s", s)
+		case p.MatchAnyFlag():
+			p.Errorf("unknown flag: %s", p.Flag)
 
 		default:
-			rest = append(rest, s)
+			rest = append(rest, arg)
 		}
 	}
 
-	if p.err != nil {
-		return a, p.err
+	if p.Err != nil {
+		return a, p.Err
 	}
 
 	switch {
@@ -107,86 +106,6 @@ loop:
 	}
 
 	return a, nil
-}
-
-type pstate struct {
-	err error
-}
-
-func (p *pstate) emitErrorf(format string, a ...any) {
-	// saving only the first error:
-	if p.err == nil {
-		p.err = fmt.Errorf(format, a...)
-	}
-}
-
-// parsing bits, for case expressions
-
-func (p *pstate) parseBoolFlag(dest *bool, s, short, long string) bool {
-	var n int
-	if strings.HasPrefix(s, long) {
-		n = len(long)
-	} else if strings.HasPrefix(s, short) {
-		n = len(short)
-	} else {
-		return false
-	}
-	flag, s := s[:n], s[n:]
-	if s == "" {
-		*dest = true
-		return true
-	}
-	if s[0] != '=' {
-		return false
-	}
-	v, err := strconv.ParseBool(s[1:])
-	if err != nil {
-		p.emitErrorf("flag %s: %w", flag, err)
-		return false
-	}
-	*dest = v
-	return true
-}
-
-func (p *pstate) parseIntFlag(dest *int, s, long string) bool {
-	var n int
-	var dashN bool
-	if strings.HasPrefix(s, long) {
-		n = len(long)
-	} else if s[0] == '-' {
-		n = 1
-		dashN = true
-	} else {
-		return false
-	}
-	flag, s := s[:n], s[n:]
-
-	if dashN {
-		if s == "" {
-			return false
-		}
-		v, err := strconv.Atoi(s)
-		if err != nil {
-			return false
-		}
-		*dest = v
-		return true
-	}
-
-	if s == "" {
-		p.emitErrorf("flag %s: expected value", flag)
-		return false
-	}
-	if s[0] != '=' {
-		return false
-	}
-	v, err := strconv.Atoi(s[1:])
-	if err != nil {
-		p.emitErrorf("flag %s: %w", flag, err)
-		return false
-	}
-	*dest = v
-	return true
 }
 
 // help
