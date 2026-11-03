@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"mvdan.cc/sh/v3/shell"
 )
 
 func TestParseArgs(t *testing.T) {
@@ -86,7 +88,12 @@ func TestParseArgs(t *testing.T) {
 
 	for i, tc := range tab {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			a, err := parseArgs(strings.Fields(tc.input))
+
+			args, err := shell.Fields(tc.input, nil)
+			if err != nil {
+				t.Fatalf("shell args: %v", err)
+			}
+			a, err := parseArgs(args)
 
 			switch {
 			case err != nil && tc.errs == "":
